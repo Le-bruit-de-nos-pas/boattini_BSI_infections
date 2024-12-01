@@ -69,6 +69,8 @@ my_data <- read_excel(path = "ANAEuROBE_dataset_matteo_only.xlsx",  sheet="3.Com
 my_data <- my_data  %>% mutate(`Species identification` =str_replace_all(`Species identification`, "�", " "))  
 my_data$`Species identification` <- str_trim(my_data$`Species identification`)
 
+my_data <- my_data %>% filter(!grepl("JEN", `Code event`))
+
 length(unique(my_data$`Species identification`)) #314
 
 
@@ -295,6 +297,10 @@ casfm_resist_counts <- MIC_data %>% filter(!is.na(CASFM_mic_Resist )) %>%
   mutate(n_casfm=`1`+`0`, perc_r_casfm=`1`/(`1`+`0`)) %>% select(-c(`1`,`0`))
 
 
+EUCAST_resist_counts %>% filter(grepl("acnes", `Species identification`))
+
+
+
 fwrite(summary_MIC_concent, "summary_MIC_concent.csv")
 fwrite(R_S_original_counts, "R_S_original_counts.csv")
 
@@ -334,11 +340,13 @@ my_data <- read_excel(path = "ANAEuROBE_dataset_matteo_only.xlsx",  sheet="3.Com
 my_data <- my_data  %>% mutate(`Species identification` =str_replace_all(`Species identification`, "�", " "))  
 my_data$`Species identification` <- str_trim(my_data$`Species identification`)
 
+my_data <- my_data %>% filter(!grepl("JEN", `Code event`))
+
 length(unique(my_data$`Species identification`)) #315
 
 lookupdataspecies <- fread("lookupdataspecies.csv")
 
-my_data <- lookupdataspecies  %>%  left_join(my_data) 
+my_data <- lookupdataspecies  %>%  left_join(my_data, by=c("Species.identification"="Species identification"))
 
 my_data <- my_data %>% 
   mutate(speciesID=ifelse(speciesID==40,57, speciesID)) %>%
@@ -704,12 +712,13 @@ data.frame(Lookup_species %>% select(`Species identification`, speciesID) %>% di
 my_data <- read_excel(path = "ANAEuROBE_dataset_matteo_only.xlsx",  sheet="3.Completo", col_types = "text")
 my_data <- my_data  %>% mutate(`Species identification` =str_replace_all(`Species identification`, "�", " "))  
 my_data$`Species identification` <- str_trim(my_data$`Species identification`)
+my_data <- my_data %>% filter(!grepl("JEN", `Code event`))
 
 length(unique(my_data$`Species identification`)) #315
 
 lookupdataspecies <- fread("lookupdataspecies.csv")
 
-my_data <- lookupdataspecies  %>%  left_join(my_data) 
+my_data <- lookupdataspecies  %>% left_join(my_data, by=c("Species.identification"="Species identification"))
 
 my_data <- my_data %>% 
   mutate(speciesID=ifelse(speciesID==40,57, speciesID)) %>%
@@ -876,10 +885,7 @@ resistance_summary <- temp %>%
   summarise(
     n_samples = n(),
     resistance_rate = mean(EUCAST_mic_Resist) * 100
-  ) %>% inner_join(my_data %>% select(speciesID, `Code event`) %>% distinct() %>%
-                     group_by(speciesID) %>% count() %>% arrange(-n) %>%
-                     head(50) %>% ungroup() %>% select(speciesID))
-
+  ) %>% filter(n_samples>10) 
 
 resistance_summary <- resistance_summary %>% mutate(Abx=ifelse(Abx=="Benzilpenicillin MIC", "Benzylpenicillin MIC", Abx))
 resistance_summary <- resistance_summary %>% mutate(`Species identification`=ifelse(`Species identification`=="Lactobacillus rhamnosus", "Lacticaseibacillus rhamnosus", `Species identification`))
@@ -906,13 +912,13 @@ plot <- pheatmap(heatmap_matrix,
                  fontsize_row = 10,  # Font size for species
                  fontsize_col = 10,  # Font size for antibiotics
                  display_numbers = display_matrix,  # Show exact resistance rates
-                 main = "Antibiotic Resistance Clustering [TOP 50] \n"
+                 main = "Antibiotic Resistance Clustering \n [Species-Abx Combinations With >10 Samples] \n"
                  
 )
 
 
 
-ggsave(file="dendo.svg", plot=plot, width=6, height=13)
+ggsave(file="dendo.svg", plot=plot, width=6, height=15)
 
 
 
@@ -923,9 +929,7 @@ resistance_summary <- temp %>%
   summarise(
     n_samples = n(),
     resistance_rate = mean(EUCAST_mic_Resist) * 100
-  ) %>% inner_join(my_data %>% select(speciesID, `Code event`) %>% distinct() %>%
-                 group_by(speciesID,) %>% count() %>% arrange(-n) %>%
-                 head(50) %>% ungroup() %>% select(speciesID))
+  ) %>% filter(n_samples>10) 
 
 
 resistance_summary <- resistance_summary %>% mutate(Abx=ifelse(Abx=="Benzilpenicillin MIC", "Benzylpenicillin MIC", Abx))
@@ -938,7 +942,7 @@ plot <- ggplot(resistance_summary, aes(x = Abx, y = `Species identification`)) +
   geom_point(aes(size = n_samples , color = resistance_rate), alpha = 0.9) +
   scale_size(range = c(1, 20)) +  # Adjust the bubble size range
   scale_color_gradient(low = "lightgray", high = "midnightblue") +  # Color scale from susceptible (green) to resistant (red)
-  labs(title = "Antibiotic Resistance by Species and Antibiotic \n [TOP 50]",
+  labs(title = "Antibiotic Resistance by Species and Antibiotic \n [Species-Abx Combinations With >10 Samples]",
        x = "Antibiotic",
        y = "Species",
        size = "Sample Size",
@@ -947,7 +951,7 @@ plot <- ggplot(resistance_summary, aes(x = Abx, y = `Species identification`)) +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))  
 
 
-ggsave(file="bubble.svg", plot=plot, width=8, height=12)
+ggsave(file="bubble.svg", plot=plot, width=8, height=15)
 
 
 
@@ -981,12 +985,13 @@ Lookup_species <- Lookup_species %>%
 my_data <- read_excel(path = "ANAEuROBE_dataset_matteo_only.xlsx",  sheet="3.Completo", col_types = "text")
 my_data <- my_data  %>% mutate(`Species identification` =str_replace_all(`Species identification`, "�", " "))  
 my_data$`Species identification` <- str_trim(my_data$`Species identification`)
+my_data <- my_data %>% filter(!grepl("JEN", `Code event`))
 
 length(unique(my_data$`Species identification`)) #315
 
 lookupdataspecies <- fread("lookupdataspecies.csv")
 
-my_data <- lookupdataspecies  %>%  left_join(my_data) 
+my_data <- lookupdataspecies  %>% left_join(my_data, by=c("Species.identification"="Species identification"))
 
 my_data <- my_data %>% 
   mutate(speciesID=ifelse(speciesID==40,57, speciesID)) %>%
@@ -1125,9 +1130,7 @@ resistance_summary <- temp %>%
   summarise(
     n_samples = n(),
     resistance_rate = mean(EUCAST_Diam_Resist) * 100
-  ) %>% inner_join(my_data %>% select( speciesID, `Code event`) %>% distinct() %>%
-                     group_by(speciesID) %>% count() %>% arrange(-n) %>%
-                     head(50) %>% ungroup() %>% select(speciesID))
+  ) %>% filter(n_samples>10) 
 
 
 
@@ -1157,10 +1160,10 @@ plot <- pheatmap(heatmap_matrix,
                  fontsize_row = 10,  # Font size for species
                  fontsize_col = 10,  # Font size for antibiotics
                  display_numbers = display_matrix,  # Show exact resistance rates
-                 main = "Antibiotic Resistance Clustering [TOP 50] \n"
+                 main = "Antibiotic Resistance Clustering \n [Species-Abx Combinations With >10 Samples] \n"
 )
 
-ggsave(file="dendo_diam.svg", plot=plot, width=6, height=7)
+ggsave(file="dendo_diam.svg", plot=plot, width=6, height=8)
 
 
 
@@ -1172,10 +1175,7 @@ resistance_summary <- temp %>%
   summarise(
     n_samples = n(),
     resistance_rate = mean(EUCAST_Diam_Resist) * 100
-  ) %>%
-  inner_join(my_data %>% select( speciesID, `Code event`) %>% distinct() %>%
-                   group_by(speciesID) %>% count() %>% arrange(-n) %>%
-                   head(50) %>% ungroup() %>% select(speciesID))
+  ) %>% filter(n_samples>10) 
 
 
 
@@ -1189,7 +1189,7 @@ plot <- ggplot(resistance_summary, aes(x = Abx, y = `Species identification`)) +
   geom_point(aes(size = n_samples , color = resistance_rate), alpha = 0.9) +
   scale_size(range = c(1, 20)) +  # Adjust the bubble size range
   scale_color_gradient(low = "lightgray", high = "firebrick") +  # Color scale from susceptible (green) to resistant (red)
-  labs(title = "Antibiotic Resistance by Species and Antibiotic \n [TOP 50]",
+  labs(title = "Antibiotic Resistance by Species and Antibiotic \n [Species-Abx Combinations With >10 Samples] \n",
        x = "Antibiotic",
        y = "Species",
        size = "Sample Size",
@@ -1198,7 +1198,7 @@ plot <- ggplot(resistance_summary, aes(x = Abx, y = `Species identification`)) +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))  
 
 
-ggsave(file="bubble.svg", plot=plot, width=8, height=6)
+ggsave(file="bubble_diam.svg", plot=plot, width=8, height=6)
 
 # ---------------------
 
@@ -1518,54 +1518,54 @@ ggsave(file="csfm.svg", plot=plot, width=6, height=6)
 
 # Summary Table MIC and Diameters ----------------
 
-my_data <- read_excel(path = "MIC_Workbook_Nov6.xlsx",  sheet="Summary MIC Values", skip = 1)
+my_data <- read_excel(path = "MIC_Workbook_Dec_1.xlsx",  sheet="Summary MIC Values", skip = 1)
 unique(my_data$`Species identification`)
 TOP <-  my_data %>% mutate(`Abx MIC tested`=str_replace_all(`Abx MIC tested`, " MIC", ""))
 
-my_data <- read_excel(path = "MIC_Workbook_Nov6.xlsx",  sheet="EUCAST Resist Thresh", skip = 0)
+my_data <- read_excel(path = "MIC_Workbook_Dec_1.xlsx",  sheet="EUCAST Resist Thresh", skip = 0)
 my_data <- my_data%>% mutate(Abx=str_replace_all(Abx, " MIC", ""))
 my_data <- my_data %>% rename("N_EUCASAT_thre"="# Nr Isolates")
 
 TOP <- TOP %>% left_join(my_data %>% select(-`Species identification`),  by=c("SpeciesID"="SpeciesID", "Abx MIC tested"="Abx"))
 
-my_data <- read_excel(path = "MIC_Workbook_Nov6.xlsx",  sheet="CLSI Resist Thresh", skip = 0)
+my_data <- read_excel(path = "MIC_Workbook_Dec_1.xlsx",  sheet="CLSI Resist Thresh", skip = 0)
 my_data <- my_data%>% mutate(Abx=str_replace_all(Abx, " MIC", ""))
 my_data <- my_data %>% rename("N_CLSI_thre"="# Nr Isolates")
 
 TOP <- TOP %>% left_join(my_data %>% select(-`Species identification`),  by=c("SpeciesID"="SpeciesID", "Abx MIC tested"="Abx"))
 
-my_data <- read_excel(path = "MIC_Workbook_Nov6.xlsx",  sheet="CASFM Resist Thresh", skip = 0)
+my_data <- read_excel(path = "MIC_Workbook_Dec_1.xlsx",  sheet="CASFM Resist Thresh", skip = 0)
 my_data <- my_data%>% mutate(Abx=str_replace_all(Abx, " MIC", ""))
 my_data <- my_data %>% rename("N_CASFM_thre"="# Nr Isolates")
 
 TOP <- TOP %>% left_join(my_data %>% select(-`Species identification`),  by=c("SpeciesID"="SpeciesID", "Abx MIC tested"="Abx"))
 
-fwrite(TOP, "MIC_Summary_All_Nov_14.csv")
+fwrite(TOP, "MIC_Summary_All_Dec_1.csv")
 
 
 
-my_data <- read_excel(path = "INHIB_ZONE_Workbook_Nov6.xlsx",  sheet="Summary Zone Diam Values", skip = 1)
+my_data <- read_excel(path = "INHIB_ZONE_Workbook_Dec_1.xlsx",  sheet="Summary Zone Diam Values", skip = 1)
 TOP <- my_data
 
-my_data  <- read_excel(path = "INHIB_ZONE_Workbook_Nov6.xlsx",  sheet="EUCAST Resist Thresh", skip = 0)
+my_data  <- read_excel(path = "INHIB_ZONE_Workbook_Dec_1.xlsx",  sheet="EUCAST Resist Thresh", skip = 0)
 my_data <- my_data %>% rename("N_EUCASAT_thre"="# Nr Isolates")
 
 TOP <- TOP %>% left_join(my_data %>% select(-`Species identification`),  by=c("SpeciesID"="SpeciesID", "Abx MIC tested"="Abx"))
 
-my_data <- read_excel(path = "INHIB_ZONE_Workbook_Nov6.xlsx",  sheet="CASFM Resist Thresh", skip = 0)
+my_data <- read_excel(path = "INHIB_ZONE_Workbook_Dec_1.xlsx",  sheet="CASFM Resist Thresh", skip = 0)
 my_data <- my_data %>% rename("N_CASFM_thre"="# Nr Isolates")
 
 TOP <- TOP %>% left_join(my_data %>% select(-`Species identification`),  by=c("SpeciesID"="SpeciesID", "Abx MIC tested"="Abx"))
 
 data.frame(TOP)
 
-fwrite(TOP, "Diams_Summary_All_Nov_14.csv")
+fwrite(TOP, "Diams_Summary_All_Dec_1.csv")
 
 
-ZI <- read_excel(path = "INHIB_ZONE_Workbook_Nov6.xlsx",  sheet="ZI", col_types = "text")
+ZI <- read_excel(path = "INHIB_ZONE_Workbook_Dec_1.xlsx",  sheet="ZI", col_types = "text")
 ZI$SpeciesID <- as.numeric(ZI$SpeciesID)
 
-Diams_Summary_All <- fread("Diams_Summary_All_Nov_14.csv")
+Diams_Summary_All <- fread("Diams_Summary_All_Dec_1.csv")
 
 Diams_Summary_All <- Diams_Summary_All %>%
   left_join(ZI %>% group_by(SpeciesID, Abx) %>%
@@ -1574,7 +1574,9 @@ Diams_Summary_All <- Diams_Summary_All %>%
             by=c("SpeciesID"="SpeciesID","Abx MIC tested"="Abx"))
 
 
-fwrite(Diams_Summary_All, "Diams_Summary_All_Nov_14.csv")
+fwrite(Diams_Summary_All, "Diams_Summary_All_Dec_1.csv")
+
+
 # -------------
 # Compare adults vs peds ------------------
 my_data <- read_excel(path = "MIC_Workbook_Nov_14.xlsx",  sheet="MIC Clean Data")
