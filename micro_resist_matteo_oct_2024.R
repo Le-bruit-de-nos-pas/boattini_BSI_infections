@@ -1579,11 +1579,27 @@ fwrite(Diams_Summary_All, "Diams_Summary_All_Dec_1.csv")
 
 # -------------
 # Compare adults vs peds ------------------
-my_data <- read_excel(path = "MIC_Workbook_Nov_14.xlsx",  sheet="MIC Clean Data")
+my_data <- read_excel(path = "MIC_Workbook_Dec_1.xlsx",  sheet="MIC Clean Data")
 my_data <- my_data %>% select(`Code event`, `Species identification`, Abx, `EUCAST Resistant?`) 
 my_data <-  my_data %>% mutate(`Abx`=str_replace_all(`Abx`, " MIC", ""))
 
+my_data <- my_data %>% filter(!grepl("JEN", `Code event`))
+
 my_data <- my_data %>% filter(`EUCAST Resistant?` %in% c(0, 1))
+
+
+my_data_2 <- read_excel(path = "INHIB_ZONE_Workbook_Dec_1.xlsx",  sheet="Inhib Zone Diam Clean Data")
+my_data_2 <- my_data_2 %>% select(`Code event`, `Species identification`, Abx, `EUCAST Resistant?`) 
+my_data_2 <-  my_data_2 %>% mutate(`Abx`=str_replace_all(`Abx`, " MIC", ""))
+my_data_2 <- my_data_2 %>% filter(!grepl("JEN", `Code event`))
+my_data_2 <- my_data_2 %>% filter(`EUCAST Resistant?` %in% c(0, 1))
+
+my_data <- my_data %>% bind_rows(my_data_2)
+
+my_data <- my_data %>% group_by(`Code event`, `Species identification`, Abx) %>%  mutate(`EUCAST Resistant?`=max(`EUCAST Resistant?`)) 
+
+my_data <- my_data %>% distinct()
+
 
 my_data <- my_data  %>% mutate(`Species identification` =str_replace_all(`Species identification`, "�", " "))  
 my_data <- my_data  %>% mutate(`Species identification` =str_replace_all(`Species identification`, " ", "_"))  
@@ -1599,13 +1615,15 @@ my_data <- my_data %>% mutate(`Species identification`=ifelse(grepl("acteroide",
                                                    ifelse(grepl("Phocaeicola", `Species identification`), "Bacteroides_spp", `Species identification`)))
 
 
-my_data <- my_data %>% mutate(var=paste(`Species identification`, Abx)) %>% 
-  mutate(var =str_replace_all(var, " ", "_"))   %>%
+my_data <- my_data %>% ungroup() %>% mutate(var=paste(`Species identification`, Abx)) %>% 
+  mutate(var =str_replace_all(var, " ", "_"))   %>% 
   select(-c(`Species identification`, Abx)) %>% distinct() %>%
+  group_by(var, `Code event`) %>% summarise(`EUCAST Resistant?`=max(`EUCAST Resistant?`, na.rm=T)) %>% distinct() %>% ungroup() %>%
   spread(key=var, value=`EUCAST Resistant?`) 
 
 
 peds <- read_excel(path = "ANAEuROBE_dataset_matteo_only.xlsx",  sheet="3.Completo", col_types = "text")
+peds <- peds %>% filter(!grepl("JEN", `Code event`))
 
 data.frame(peds %>% filter(`Paediatrics=1`==1) %>%
   group_by(`Species identification`) %>% count() %>%
@@ -1703,7 +1721,7 @@ ploted_shap <- mean_shap_df %>% head(20) %>%
   labs(title = "Mean Absolute SHAP Values [Top 20 Only!]", x = "Feature \n ", y = " \nMean SHAP Value") +
   theme(axis.text.x = element_text(angle = 20, hjust = 1))
 
-ggsave(file="ploted_shap.svg", plot=ploted_shap, width=7, height=6)
+ggsave(file="ploted_shap_eucast_mic_PLUS_diam_excJena.svg", plot=ploted_shap, width=7, height=6)
 
 
 
@@ -1733,11 +1751,11 @@ final_results <- bind_rows(results_list)
 # View the final results
 head(final_results)
 
-data.frame(final_results %>% spread(key=peds, value=mean_value)) %>%
-  mutate(X0=round(100*X0,2)) %>%
-  mutate(X1=round(100*X1,2)) %>% filter(abs(X1-X0)>20)
+final_results <- data.frame(final_results %>% spread(key=peds, value=mean_value)) 
 
-
+names(final_results)[2] <- "resistance_adults"
+names(final_results)[3] <- "resistance_peds"
+head(final_results)
 
 results_list <- list()
 
@@ -1757,25 +1775,48 @@ for (feature in top_features$Feature) {
 }
 
 # Combine the list of results into one dataframe
-final_results <- bind_rows(results_list)
+final_results_counts <- bind_rows(results_list)
 
-final_results <- final_results %>% spread(key = peds, value=row_count)
-fwrite(final_results, "Counts_samples_peds_vs_adults_specieslevel.csv")
+final_results_counts <- final_results_counts %>% spread(key = peds, value=row_count)
+
+names(final_results_counts)[2] <- "sample_count_adults"
+names(final_results_counts)[3] <- "sample_count_peds"
+head(final_results_counts)
+
+final_results_counts <- final_results %>% inner_join(final_results_counts)
+
+
+fwrite(final_results_counts, "Samples_peds_vs_adults_specieslevel_eucast_mic_PLUS_diam_excJena.csv")
 
 
 # ------------------
 
 # Compare adults vs peds gram pos neg bac cocci ------------------
-my_data <- read_excel(path = "MIC_Workbook_Nov_14.xlsx",  sheet="MIC Clean Data")
+my_data <- read_excel(path = "MIC_Workbook_Dec_1.xlsx",  sheet="MIC Clean Data")
 my_data <- my_data %>% select(`Code event`, Abx, `EUCAST Resistant?`) 
 my_data <-  my_data %>% mutate(`Abx`=str_replace_all(`Abx`, " MIC", ""))
+my_data <- my_data %>% filter(!grepl("JEN", `Code event`))
 
 my_data <- my_data %>% filter(`EUCAST Resistant?` %in% c(0, 1))
 
 
+my_data_2 <- read_excel(path = "INHIB_ZONE_Workbook_Dec_1.xlsx",  sheet="Inhib Zone Diam Clean Data")
+my_data_2 <- my_data_2 %>% select(`Code event`, Abx, `EUCAST Resistant?`) 
+my_data_2 <-  my_data_2 %>% mutate(`Abx`=str_replace_all(`Abx`, " MIC", ""))
+my_data_2 <- my_data_2 %>% filter(!grepl("JEN", `Code event`))
+my_data_2 <- my_data_2 %>% filter(`EUCAST Resistant?` %in% c(0, 1))
+
+my_data <- my_data %>% bind_rows(my_data_2)
+
+my_data <- my_data %>% group_by(`Code event`, Abx) %>%  mutate(`EUCAST Resistant?`=max(`EUCAST Resistant?`)) 
+
+my_data <- my_data %>% distinct()
+
 
 peds <- read_excel(path = "ANAEuROBE_dataset_matteo_only.xlsx",  sheet="3.Completo", col_types = "text")
 peds <- peds %>% select(`Code event`, `Gram pos bacilli`, `Gram pos cocci`, `Gram neg cocci`, `Gram neg bacilli`, `Paediatrics=1`)
+peds <- peds %>% filter(!grepl("JEN", `Code event`))
+
 peds$`Paediatrics=1` <- as.numeric(peds$`Paediatrics=1`)
 peds$`Gram pos bacilli` <- as.numeric(peds$`Gram pos bacilli`)
 peds$`Gram neg bacilli` <- as.numeric(peds$`Gram neg bacilli`)
@@ -1885,7 +1926,7 @@ ploted_shap <- mean_shap_df %>% head(20) %>%
   labs(title = "Mean Absolute SHAP Values [Top 20 Only!]", x = "Feature \n ", y = " \nMean SHAP Value") +
   theme(axis.text.x = element_text(angle = 20, hjust = 1))
 
-ggsave(file="ploted_shap.svg", plot=ploted_shap, width=6, height=6)
+ggsave(file="ploted_shap_eucast_mic_PLUS_diam_excJena_gramstain.svg", plot=ploted_shap, width=6, height=6)
 
 
 
@@ -1913,11 +1954,13 @@ final_results <- bind_rows(results_list)
 # View the final results
 head(final_results)
 
-data.frame(final_results %>% spread(key=peds, value=mean_value)) %>%
-  mutate(X0=round(100*X0,2)) %>%
-  mutate(X1=round(100*X1,2)) %>% filter(abs(X1-X0)>20)
 
 
+final_results <- data.frame(final_results %>% spread(key=peds, value=mean_value)) 
+
+names(final_results)[2] <- "resistance_adults"
+names(final_results)[3] <- "resistance_peds"
+head(final_results)
 
 results_list <- list()
 
@@ -1937,10 +1980,23 @@ for (feature in top_features$Feature) {
 }
 
 # Combine the list of results into one dataframe
-final_results <- bind_rows(results_list)
+final_results_counts <- bind_rows(results_list)
 
-final_results <- final_results %>% spread(key = peds, value=row_count)
-fwrite(final_results, "Counts_samples_peds_vs_adults_gramstainlevel.csv")
+final_results_counts <- final_results_counts %>% spread(key = peds, value=row_count)
+
+names(final_results_counts)[2] <- "sample_count_adults"
+names(final_results_counts)[3] <- "sample_count_peds"
+head(final_results_counts)
+
+final_results_counts <- final_results %>% inner_join(final_results_counts)
+
+
+fwrite(final_results_counts, "Samples_peds_vs_adults_gramstainlevel_eucast_mic_PLUS_diam_excJena.csv")
+
+
+
+
+
 
 
 
