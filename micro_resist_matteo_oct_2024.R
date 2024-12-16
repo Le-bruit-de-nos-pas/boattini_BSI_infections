@@ -2001,3 +2001,98 @@ fwrite(final_results_counts, "Samples_peds_vs_adults_gramstainlevel_eucast_mic_P
 
 
 # ------------------
+
+# Paediatrics heatmap samples >5 ---------------
+my_data <- read_excel(path = "MIC_Workbook_Dec_1.xlsx",  sheet="MIC Clean Data")
+my_data <- my_data %>% select(`Code event`, `Species identification`, Abx, `EUCAST Resistant?`) 
+my_data <-  my_data %>% mutate(`Abx`=str_replace_all(`Abx`, " MIC", ""))
+
+my_data <- my_data %>% filter(!grepl("JEN", `Code event`))
+
+my_data <- my_data %>% filter(`EUCAST Resistant?` %in% c(0, 1))
+
+
+my_data_2 <- read_excel(path = "INHIB_ZONE_Workbook_Dec_1.xlsx",  sheet="Inhib Zone Diam Clean Data")
+my_data_2 <- my_data_2 %>% select(`Code event`, `Species identification`, Abx, `EUCAST Resistant?`) 
+my_data_2 <-  my_data_2 %>% mutate(`Abx`=str_replace_all(`Abx`, " MIC", ""))
+my_data_2 <- my_data_2 %>% filter(!grepl("JEN", `Code event`))
+my_data_2 <- my_data_2 %>% filter(`EUCAST Resistant?` %in% c(0, 1))
+
+my_data <- my_data %>% bind_rows(my_data_2)
+
+
+peds <- read_excel(path = "ANAEuROBE_dataset_matteo_only.xlsx",  sheet="3.Completo", col_types = "text")
+peds <- peds %>% filter(!grepl("JEN", `Code event`)) %>% 
+  filter(`Paediatrics=1`==1) %>% select(`Code event`) %>% distinct()
+
+my_data <- peds %>% inner_join(my_data)
+
+
+my_data <- my_data %>% group_by(`Code event`, `Species identification`, Abx) %>%  mutate(`EUCAST Resistant?`=max(`EUCAST Resistant?`)) 
+
+my_data <- my_data %>% distinct()
+
+my_data <- my_data  %>% mutate(`Species identification` =str_replace_all(`Species identification`, "�", " "))  
+my_data <- my_data  %>% mutate(`Species identification` =str_replace_all(`Species identification`, " ", "_"))  
+my_data <- my_data  %>% mutate(Abx =str_replace_all(Abx, " ", "_"))  
+my_data <- my_data  %>% mutate(Abx =str_replace_all(Abx, "/", "_"))  
+
+unique(my_data$`Species identification`)
+
+data.frame(my_data %>% filter(grepl("hocaeicola", `Species identification`)) %>% 
+             select(`Species identification`) %>% distinct()) %>% arrange(Species.identification)
+
+my_data <- my_data %>% mutate(`Species identification`=ifelse(grepl("acteroide", `Species identification`), "Bacteroides_spp",
+                                                              ifelse(grepl("Phocaeicola", `Species identification`), "Bacteroides_spp", `Species identification`)))
+
+
+
+library(pheatmap)
+library(dplyr)
+library(tidyr)
+
+
+
+resistance_summary <- my_data %>%
+  group_by(`Species identification`, Abx) %>%
+  summarise(
+    n_samples = n(),
+    resistance_rate = mean(`EUCAST Resistant?`) * 100
+  ) %>% filter(n_samples>5) 
+
+resistance_summary <- resistance_summary %>% mutate(Abx=ifelse(Abx=="Benzilpenicillin", "Benzylpenicillin", Abx))
+resistance_summary <- resistance_summary %>% mutate(`Species identification`=ifelse(`Species identification`=="Lactobacillus rhamnosus", "Lacticaseibacillus rhamnosus", `Species identification`))
+
+
+
+# 
+# 
+# heatmap_data <- resistance_summary %>% ungroup() %>% select(-speciesID) %>%
+#   select(`Species identification`, Abx, resistance_rate) %>%
+#   pivot_wider(names_from = Abx, values_from = resistance_rate, values_fill = NA)
+# 
+# heatmap_matrix <- as.matrix(heatmap_data[, -1])
+# 
+# rownames(heatmap_matrix) <- heatmap_data$`Species identification`
+# 
+# heatmap_matrix[is.na(heatmap_matrix)] <- -99
+# 
+# display_matrix <- round(heatmap_matrix, 0)
+# 
+# plot <- pheatmap(heatmap_matrix,
+#                  color = colorRampPalette(c("lightgray", "lightblue", "midnightblue"))(50),  
+#                  cluster_rows = TRUE,  # Cluster species
+#                  cluster_cols = TRUE,  # Cluster antibiotics
+#                  na_col = "grey",  # Color for missing values
+#                  fontsize_row = 10,  # Font size for species
+#                  fontsize_col = 10,  # Font size for antibiotics
+#                  display_numbers = display_matrix,  # Show exact resistance rates
+#                  main = "Antibiotic Resistance Clustering \n [Species-Abx Combinations With >10 Samples] \n"
+#                  
+# )
+# 
+# 
+# 
+# ggsave(file="dendo.svg", plot=plot, width=6, height=15)
+
+# ---------------------
