@@ -262,7 +262,7 @@ summary_MIC_concent <- MIC_data %>% filter(!is.na(MIC)) %>%
             n=n()) 
 
 
-# fwrite(summary_MIC_concent, "summary_MIC_concent_Nov25_MIC90.csv")
+fwrite(summary_MIC_concent, "summary_MIC_concent_Jan29_MIC90.csv")
 
 R_S_original_counts <- MIC_data %>% filter(!is.na(R_S)) %>%
   group_by(`Species identification`, speciesID, Abx, R_S) %>% count() %>%
@@ -299,16 +299,14 @@ casfm_resist_counts <- MIC_data %>% filter(!is.na(CASFM_mic_Resist )) %>%
 
 EUCAST_resist_counts %>% filter(grepl("acnes", `Species identification`))
 
+fwrite(summary_MIC_concent, "summary_MIC_concent_Jan29.csv")
+fwrite(R_S_original_counts, "R_S_original_counts_Jan29.csv")
 
+fwrite(MIC_data, "MIC_data_Jan29.csv")
 
-fwrite(summary_MIC_concent, "summary_MIC_concent.csv")
-fwrite(R_S_original_counts, "R_S_original_counts.csv")
-
-fwrite(MIC_data, "MIC_data.csv")
-
-fwrite(EUCAST_resist_counts, "EUCAST_resist_counts.csv")
-fwrite(CLSI_resist_counts, "CLSI_resist_counts.csv")
-fwrite(casfm_resist_counts, "casfm_resist_counts.csv")
+fwrite(EUCAST_resist_counts, "EUCAST_resist_counts_Jan29.csv")
+fwrite(CLSI_resist_counts, "CLSI_resist_counts_Jan29.csv")
+fwrite(casfm_resist_counts, "casfm_resist_counts_Jan29.csv")
 
 
 # -----------------------------------
@@ -506,12 +504,12 @@ casfm_resist_counts_zone <- ZONE_data %>% filter(!is.na(CASFM_Diam_Resist  )) %>
   mutate(n_casfm=`1`+`0`, perc_r_casfm=`1`/(`1`+`0`)) %>% select(-c(`1`,`0`))
 
 
-fwrite(summary_ZONE_concent, "summary_ZONE_concent.csv")
+fwrite(summary_ZONE_concent, "summary_ZONE_concent_Jan29.csv")
 
-fwrite(ZONE_data, "ZONE_data.csv")
+fwrite(ZONE_data, "ZONE_data_Jan29.csv")
 
-fwrite(EUCAST_resist_counts_zone, "EUCAST_resist_counts_zone.csv")
-fwrite(casfm_resist_counts_zone, "casfm_resist_counts_zone.csv")
+fwrite(EUCAST_resist_counts_zone, "EUCAST_resist_counts_zone_Jan29.csv")
+fwrite(casfm_resist_counts_zone, "casfm_resist_counts_zone_Jan29.csv")
 
 
 ZI <- ZONE_data %>% filter(grepl(",", ZI)) %>%
@@ -533,7 +531,7 @@ ZI %>% group_by(`Species identification`, speciesID, Abx) %>%
             n=n()) %>%
   filter(n>=20)
 
-fwrite(ZI, "ZI.csv")
+fwrite(ZI, "ZI_Jan29.csv")
 
 
 
@@ -904,11 +902,14 @@ heatmap_matrix[is.na(heatmap_matrix)] <- -99
 
 display_matrix <- round(heatmap_matrix, 0)
 
+
+
 plot <- pheatmap(heatmap_matrix,
-                 color = colorRampPalette(c("lightgray", "lightblue", "midnightblue"))(50),  
+                 color = colorRampPalette(c("white", "lightcyan1", "royalblue4"))(50),  
                  cluster_rows = TRUE,  # Cluster species
                  cluster_cols = TRUE,  # Cluster antibiotics
-                 na_col = "grey",  # Color for missing values
+                 na_col = "white",  # Color for missing values
+                 number_color = "black",  # Set label numbers to black
                  fontsize_row = 10,  # Font size for species
                  fontsize_col = 10,  # Font size for antibiotics
                  display_numbers = display_matrix,  # Show exact resistance rates
